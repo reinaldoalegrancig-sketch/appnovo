@@ -14,7 +14,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const isAdmin = user?.email === 'admin@adminfe.com.br';
+  const isAdmin = user?.email === 'reinaldoalegrancig@gmail.com';
 
   useEffect(() => {
     // Pegar sessao inicial

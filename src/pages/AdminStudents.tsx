@@ -36,7 +36,7 @@ const AdminStudents = () => {
     const { data, error } = await supabase.auth.admin.listUsers();
     if (data) {
       // Filtra apenas alunos (não admins)
-      const alunos = data.users.filter(u => u.email !== 'admin@adminfe.com.br');
+      const alunos = data.users.filter(u => u.email !== 'reinaldoalegrancig@gmail.com');
       setStudents(alunos);
     } else {
       console.error(error);

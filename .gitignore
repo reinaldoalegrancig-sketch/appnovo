@@ -37,3 +37,5 @@ test_create_student.cjs
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
