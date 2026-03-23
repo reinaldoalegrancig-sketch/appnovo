@@ -12,6 +12,21 @@ dist
 dist-ssr
 *.local
 
+# Environment variables - NUNCA commitar!
+.env
+.env.*
+!.env.example
+
+# Migration/temp scripts
+temp_recipes.cjs
+temp_recipes.js
+migrate_to_supabase.cjs
+migrate_to_supabase.js
+create_table.cjs
+extract_recipes.cjs
+setup_students.cjs
+test_create_student.cjs
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
