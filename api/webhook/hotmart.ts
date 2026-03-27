@@ -7,18 +7,25 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-// ─── MAPEAMENTO: Nome do produto na Korvex → ID do produto no app ────────────
-// Use o nome exato como aparece na Korvex (a comparação ignora maiúsculas)
-const PRODUCT_NAME_MAP: Record<string, string> = {
-  '200 receitas de pães':        'paes-200',
-  '+15 frigideira/micro-ondas':  'frigideira-15',
-  '+25 air fryer':               'airfryer-25',
-  '+30 bolachas e biscoitos':    'biscoitos-30',
-  '+40 máquina de pão':          'maquina-pao-40',
+// ─── MAPEAMENTO: Nome do produto na Korvex → ID(s) do produto no app ─────────
+// Cada nome pode liberar um ou mais produtos (ex: bundle libera tudo)
+const PRODUCT_NAME_MAP: Record<string, string[]> = {
+  // Curso principal
+  'curso online de pães sem glúten - fernanda oliveira': ['paes-200'],
+
+  // Bônus individuais
+  '+15 receitas de frigideira e micro-ondas sem glúten': ['frigideira-15'],
+  '+25 receitas de air fryer sem glúten':                ['airfryer-25'],
+  '+30 bolachas e biscoitos sem glúten':                 ['biscoitos-30'],
+  '+40 receitas máquina de pão sem glúten - fernanda oliveira': ['maquina-pao-40'],
+  '+40 receitas na máquina de pão sem glúten':           ['maquina-pao-40'],
+
+  // Acesso vitalício → libera tudo
+  'acesso vitalício + atualizações': ['paes-200', 'frigideira-15', 'airfryer-25', 'biscoitos-30', 'maquina-pao-40'],
 };
 
-function findProductByName(name: string): string | undefined {
-  return PRODUCT_NAME_MAP[name.toLowerCase().trim()];
+function findProductsByName(name: string): string[] {
+  return PRODUCT_NAME_MAP[name.toLowerCase().trim()] ?? [];
 }
 
 // Status da Korvex que indicam pagamento confirmado
@@ -68,11 +75,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     for (const item of orderItems) {
       const korvexProductName: string = item?.product?.name ?? '';
-      const appProductId = findProductByName(korvexProductName);
+      const mapped = findProductsByName(korvexProductName);
 
-      if (appProductId) {
-        appProductIds.push(appProductId);
-        console.log(`[Korvex Webhook] Produto mapeado: "${korvexProductName}" → ${appProductId}`);
+      if (mapped.length > 0) {
+        appProductIds.push(...mapped);
+        console.log(`[Korvex Webhook] Produto mapeado: "${korvexProductName}" → [${mapped.join(', ')}]`);
       } else {
         console.warn(`[Korvex Webhook] Produto não mapeado: "${korvexProductName}"`);
       }
