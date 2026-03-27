@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Users, Trash2, ChevronLeft, Save, Loader2, CheckSquare, Square, Shield, Mail } from 'lucide-react';
+import { UserPlus, Users, Trash2, ChevronLeft, Save, Loader2, CheckSquare, Square, Shield, Mail, FileDown, FileText } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import AccessCard from '../components/AccessCard';
+import WelcomePDF from '../components/WelcomePDF';
 
 const ALL_PRODUCTS = [
   { id: 'paes-200', label: '200 Receitas de Pães' },
@@ -25,6 +29,9 @@ const AdminStudents = () => {
   const [newProducts, setNewProducts] = useState<string[]>(['paes-200']);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [selectedStudentForCard, setSelectedStudentForCard] = useState<string | null>(null);
+  const [isGeneratingWelcome, setIsGeneratingWelcome] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) { navigate('/produtos'); return; }
@@ -33,10 +40,10 @@ const AdminStudents = () => {
 
   const fetchStudents = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.auth.admin.listUsers();
+    if (!supabaseAdmin) { setIsLoading(false); return; }
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
     if (data) {
-      // Filtra apenas alunos (não admins)
-      const alunos = data.users.filter(u => u.email !== 'reinaldoalegrancig@gmail.com');
+      const alunos = data.users.filter((u: { email?: string }) => u.email !== 'reinaldoalegrancig@gmail.com');
       setStudents(alunos);
     } else {
       console.error(error);
@@ -67,9 +74,10 @@ const AdminStudents = () => {
     // Verificar se já existe
     const existing = students.find(s => s.email === newEmail);
 
+    if (!supabaseAdmin) { setFormError('Serviço admin não configurado. Adicione VITE_SUPABASE_SERVICE_KEY.'); setIsSaving(false); return; }
+
     if (existing) {
-      // Atualizar metadados
-      const { error } = await supabase.auth.admin.updateUserById(existing.id, {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
         user_metadata: { unlocked_products: newProducts }
       });
       if (error) {
@@ -81,8 +89,7 @@ const AdminStudents = () => {
         fetchStudents();
       }
     } else {
-      // Criar novo
-      const { error } = await supabase.auth.admin.createUser({
+      const { error } = await supabaseAdmin.auth.admin.createUser({
         email: newEmail,
         password: 'receitas123',
         email_confirm: true,
@@ -103,12 +110,87 @@ const AdminStudents = () => {
 
   const handleDeleteStudent = async (userId: string, email: string) => {
     if (!confirm(`Remover acesso de ${email}?`)) return;
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    if (!supabaseAdmin) { alert('Serviço admin não configurado.'); return; }
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (error) {
       alert('Erro ao remover: ' + error.message);
     } else {
       fetchStudents();
     }
+  };
+
+  const generatePDF = async (studentEmail: string) => {
+    setIsGenerating(studentEmail);
+    setSelectedStudentForCard(studentEmail);
+    
+    // Pequeno delay para garantir que o DOM renderizou
+    setTimeout(async () => {
+      const element = document.getElementById('access-card-template');
+      if (element) {
+        try {
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            backgroundColor: '#faf9f5',
+            logging: false,
+            useCORS: true
+          });
+          
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF('landscape', 'px', [600, 400]);
+
+          pdf.addImage(imgData, 'PNG', 0, 0, 600, 400);
+
+          // Link clicável sobre o botão "ACESSAR MEU ACERVO"
+          // Layout: padding 40px, header ~70px, marginTop 20, h2 ~27px, itens ~95px, marginTop 10
+          const appUrl = window.location.origin;
+          pdf.link(40, 258, 366, 52, { url: appUrl });
+
+          // Link também no QR code (lado direito)
+          pdf.link(425, 155, 135, 135, { url: appUrl });
+
+          pdf.save(`Acesso_ChefFernanda_${studentEmail.split('@')[0]}.pdf`);
+        } catch (err) {
+          console.error('Erro ao gerar PDF:', err);
+          alert('Erro ao gerar o cartão de acesso.');
+        }
+      }
+      setIsGenerating(null);
+    }, 500);
+  };
+
+  const generateWelcomePDF = async () => {
+    setIsGeneratingWelcome(true);
+
+    const element = document.getElementById('welcome-pdf-template');
+    if (!element) {
+      alert('Erro: template não encontrado.');
+      setIsGeneratingWelcome(false);
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#faf9f5',
+        logging: false,
+        useCORS: true,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('portrait', 'pt', 'a4');
+      pdf.addImage(imgData, 'PNG', 0, 0, 595.28, 841.89);
+
+      const appUrl = 'https://chef-app-virid.vercel.app/primeiro-acesso';
+      pdf.link(36, 498, 523, 68, { url: appUrl });
+      pdf.link(36, 606, 130, 130, { url: appUrl });
+
+      pdf.save('Entregavel_ChefFernanda.pdf');
+    } catch (err) {
+      console.error('Erro ao gerar PDF entregável:', err);
+      alert('Erro ao gerar o PDF entregável.');
+    }
+
+    setIsGeneratingWelcome(false);
   };
 
   if (!isAdmin) return null;
@@ -138,6 +220,44 @@ const AdminStudents = () => {
           <p className="text-muted-foreground font-bold italic opacity-70">Cadastre alunos após a compra. Login: e-mail | Senha: <span className="text-primary font-black">receitas123</span></p>
         </header>
 
+        {/* PDF Entregável */}
+        <section className="bg-primary/5 border-2 border-primary/20 rounded-[3rem] p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <FileText size={20} className="text-primary" />
+              <h2 className="text-lg font-black uppercase tracking-tight text-foreground">PDF Entregável</h2>
+            </div>
+            <p className="text-sm font-bold text-muted-foreground">
+              Baixe o PDF de boas-vindas para enviar aos seus alunos como material entregável na plataforma de vendas.
+            </p>
+          </div>
+          <button
+            onClick={generateWelcomePDF}
+            disabled={isGeneratingWelcome}
+            className="shrink-0 w-full sm:w-auto flex items-center justify-center gap-3 bg-primary text-white font-black text-sm uppercase tracking-widest px-8 py-5 rounded-[2rem] shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60"
+          >
+            {isGeneratingWelcome ? <Loader2 className="animate-spin" size={18} /> : <FileText size={18} />}
+            {isGeneratingWelcome ? 'Gerando...' : 'Baixar PDF'}
+          </button>
+        </section>
+
+        {/* Banner aviso service key faltando */}
+        {!supabaseAdmin && (
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 flex items-start gap-4">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <p className="font-black text-amber-800 uppercase text-sm tracking-wide">Configuração necessária</p>
+              <p className="text-amber-700 text-sm font-bold mt-1">
+                A variável <code className="bg-amber-100 px-2 py-0.5 rounded font-mono text-xs">VITE_SUPABASE_SERVICE_KEY</code> não está configurada.
+                Adicione-a no <strong>.env</strong> local e no Vercel (Settings → Environment Variables) com a <strong>service_role key</strong> do Supabase.
+              </p>
+              <p className="text-amber-600 text-xs font-bold mt-2 opacity-80">
+                Supabase Dashboard → Settings → API → service_role (secret)
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Formulário Novo Aluno */}
         <section className="bg-card rounded-[3rem] border-2 border-border p-10 space-y-8 shadow-premium">
           <h2 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
@@ -156,6 +276,7 @@ const AdminStudents = () => {
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
                   placeholder="email@exemplo.com"
+                  maxLength={255}
                   className="w-full bg-white border-2 border-border rounded-2xl py-5 pl-14 pr-6 font-bold text-lg focus:border-primary outline-none transition-all"
                 />
               </div>
@@ -239,19 +360,37 @@ const AdminStudents = () => {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteStudent(student.id, student.email!)}
-                      className="shrink-0 w-12 h-12 bg-destructive/10 hover:bg-destructive text-destructive hover:text-white rounded-2xl flex items-center justify-center transition-all"
-                      title="Remover acesso"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => generatePDF(student.email!)}
+                        disabled={isGenerating === student.email}
+                        className="shrink-0 w-12 h-12 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-2xl flex items-center justify-center transition-all disabled:opacity-50"
+                        title="Gerar Cartão de Acesso"
+                      >
+                        {isGenerating === student.email ? <Loader2 className="animate-spin" size={18} /> : <FileDown size={18} />}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStudent(student.id, student.email!)}
+                        className="shrink-0 w-12 h-12 bg-destructive/10 hover:bg-destructive text-destructive hover:text-white rounded-2xl flex items-center justify-center transition-all"
+                        title="Remover acesso"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
         </section>
+
+        {/* Templates ocultos para geração de PDF */}
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+          {selectedStudentForCard && (
+            <AccessCard email={selectedStudentForCard} />
+          )}
+          <WelcomePDF />
+        </div>
       </div>
     </div>
   );

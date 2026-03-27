@@ -111,6 +111,7 @@ const Login = () => {
                 <div className="relative group">
                   <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
                   <input type="email" placeholder="Seu e-mail" value={email} onChange={e => setEmail(e.target.value)} required
+                    maxLength={255}
                     className="w-full bg-white/50 border-2 border-border rounded-3xl py-5 pl-14 pr-6 font-bold text-lg focus:border-primary outline-none transition-all shadow-inner placeholder:opacity-50" />
                 </div>
 

@@ -3,6 +3,7 @@ import Catalog from './pages/Catalog';
 import RecipeCatalogue from './pages/RecipeCatalogue';
 import Login from './pages/Login';
 import AdminStudents from './pages/AdminStudents';
+import PrimeiroAcesso from './pages/PrimeiroAcesso';
 import { AccessProvider } from './context/AccessContext';
 import { AuthProvider } from './context/AuthContext';
 
@@ -17,6 +18,7 @@ function App() {
               <Route path="/produtos" element={<Catalog />} />
               <Route path="/produtos/:productId" element={<RecipeCatalogue />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />
               <Route path="/admin/alunos" element={<AdminStudents />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
