@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { BookOpen, Flame, Zap, Cookie, Cpu, ChevronRight, Lock, Loader2, Users, LogOut } from 'lucide-react';
 import { useAccess } from '../context/AccessContext';
+import { Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -14,7 +15,7 @@ const icons: Record<string, React.ReactNode> = {
 };
 
 const Catalog = () => {
-  const { isUnlocked } = useAccess();
+  const { isUnlocked, expiresAt } = useAccess();
   const { isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -93,6 +94,8 @@ const Catalog = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 md:gap-12">
             {products.map((product) => {
             const unlocked = isUnlocked(product.id);
+            const expiry = expiresAt(product.id);
+            const daysLeft = expiry ? Math.ceil((expiry.getTime() - Date.now()) / 86400000) : null;
             
             return (
               <div 
@@ -110,9 +113,14 @@ const Catalog = () => {
                          Bloqueado <Lock size={12} />
                       </div>
                    )}
-                   {product.featured && unlocked && (
+                   {product.featured && unlocked && !expiry && (
                       <div className="flex items-center gap-1 bg-primary text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase shadow-lg">
                          Destaque 👑
+                      </div>
+                   )}
+                   {unlocked && daysLeft !== null && (
+                      <div className="flex items-center gap-1 bg-amber-500 text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase shadow-lg">
+                         <Clock size={10} /> {daysLeft}d restantes
                       </div>
                    )}
                 </div>

@@ -344,6 +344,7 @@ const AdminStudents = () => {
             <div className="space-y-4">
               {students.map(student => {
                 const produtos: string[] = student.user_metadata?.unlocked_products ?? [];
+                const expiry: Record<string, string> = student.user_metadata?.product_expiry ?? {};
                 return (
                   <div key={student.id} className="bg-card rounded-[2rem] border-2 border-border p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="space-y-2">
@@ -352,11 +353,17 @@ const AdminStudents = () => {
                         {produtos.length === 0 ? (
                           <span className="bg-destructive/10 text-destructive text-[10px] font-black px-3 py-1 rounded-full">Sem produtos</span>
                         ) : (
-                          produtos.map(pid => (
-                            <span key={pid} className="bg-primary/10 text-primary text-[10px] font-black px-3 py-1 rounded-full">
-                              {ALL_PRODUCTS.find(p => p.id === pid)?.label ?? pid}
-                            </span>
-                          ))
+                          produtos.map(pid => {
+                            const exp = expiry[pid] ? new Date(expiry[pid]) : null;
+                            const expired = exp && exp < new Date();
+                            const label = ALL_PRODUCTS.find(p => p.id === pid)?.label ?? pid;
+                            return (
+                              <span key={pid} className={`text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 ${expired ? 'bg-destructive/10 text-destructive' : exp ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'}`}>
+                                {label}
+                                {exp ? (expired ? ' · Expirado' : ` · Expira ${exp.toLocaleDateString('pt-BR')}`) : ' · Vitalício ♾'}
+                              </span>
+                            );
+                          })
                         )}
                       </div>
                     </div>
