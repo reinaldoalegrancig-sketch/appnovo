@@ -7,16 +7,19 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-// ─── MAPEAMENTO: ID do produto na Korvex → ID do produto no app ───────────────
-// Preencha com os IDs reais dos seus produtos na Korvex
-// Encontre em: Korvex → Produtos → clique no produto → "identificador do produto"
-const PRODUCT_MAP: Record<string, string> = {
-  'KORVEX_ID_PAES_200':       'paes-200',
-  'KORVEX_ID_FRIGIDEIRA_15':  'frigideira-15',
-  'KORVEX_ID_AIRFRYER_25':    'airfryer-25',
-  'KORVEX_ID_BISCOITOS_30':   'biscoitos-30',
-  'KORVEX_ID_MAQUINA_PAO_40': 'maquina-pao-40',
+// ─── MAPEAMENTO: Nome do produto na Korvex → ID do produto no app ────────────
+// Use o nome exato como aparece na Korvex (a comparação ignora maiúsculas)
+const PRODUCT_NAME_MAP: Record<string, string> = {
+  '200 receitas de pães':        'paes-200',
+  '+15 frigideira/micro-ondas':  'frigideira-15',
+  '+25 air fryer':               'airfryer-25',
+  '+30 bolachas e biscoitos':    'biscoitos-30',
+  '+40 máquina de pão':          'maquina-pao-40',
 };
+
+function findProductByName(name: string): string | undefined {
+  return PRODUCT_NAME_MAP[name.toLowerCase().trim()];
+}
 
 // Status da Korvex que indicam pagamento confirmado
 const PAID_STATUSES = ['paid', 'PAID', 'approved', 'APPROVED', 'completed', 'COMPLETED'];
@@ -64,15 +67,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const appProductIds: string[] = [];
 
     for (const item of orderItems) {
-      const korvexProductId: string = String(item?.product?.id ?? '');
       const korvexProductName: string = item?.product?.name ?? '';
-      const appProductId = PRODUCT_MAP[korvexProductId];
+      const appProductId = findProductByName(korvexProductName);
 
       if (appProductId) {
         appProductIds.push(appProductId);
-        console.log(`[Korvex Webhook] Produto mapeado: "${korvexProductName}" (${korvexProductId}) → ${appProductId}`);
+        console.log(`[Korvex Webhook] Produto mapeado: "${korvexProductName}" → ${appProductId}`);
       } else {
-        console.warn(`[Korvex Webhook] Produto não mapeado: "${korvexProductName}" (${korvexProductId})`);
+        console.warn(`[Korvex Webhook] Produto não mapeado: "${korvexProductName}"`);
       }
     }
 
